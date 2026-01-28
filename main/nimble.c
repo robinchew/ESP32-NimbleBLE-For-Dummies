@@ -1,5 +1,3 @@
-
-
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -34,9 +32,14 @@ static const ble_uuid128_t gatt_svr_svc_uuid =
 //!! c9af9c76-46de-11ed-b878-0242ac120002
 static const ble_uuid128_t gatt_svr_chr_uuid =
     BLE_UUID128_INIT(0x02, 0x00, 0x12, 0xac, 0x42, 0x02, 0x78, 0xb8, 0xed, 0x11, 0xde, 0x46, 0x76, 0x9c, 0xaf, 0xc9);
+
+// 9f0921bf-c468-46bd-a724-b95bfa95541e
+static const ble_uuid128_t gatt_svr_chr_uuid2 =
+    BLE_UUID128_INIT(0x1e, 0x54, 0x95, 0xfa, 0x5b, 0xb9, 0x24, 0xa7, 0xbd, 0x46, 0x68, 0xc4, 0xbf, 0x21, 0x09, 0x9f);
+
 //@_____Some variables used in service and characteristic declaration______
 char characteristic_value[50] = "I am characteristic value"; //!! When client read characteristic, he get this value. You can also set this value in your code.
-char characteristic_received_value[500];                     //!! When client write to characteristic , he set value of this. You can read it in code.
+char characteristic_received_value[5];                     //!! When client write to characteristic , he set value of this. You can read it in code.
 
 uint16_t min_length = 1;   //!! minimum length the client can write to a characterstic
 uint16_t max_length = 700; //!! maximum length the client can write to a characterstic
@@ -50,6 +53,10 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
                                struct ble_gatt_access_ctxt *ctxt,
                                void *arg); //!! Callback function. When ever characrstic will be accessed by user, this function will execute
 
+static int gatt_svr_chr_access2(uint16_t conn_handle, uint16_t attr_handle,
+                                struct ble_gatt_access_ctxt *ctxt,
+                                void *arg); //!! Callback function. When ever characrstic will be accessed by user, this function will execute
+
 static int gatt_svr_chr_write(struct os_mbuf *om, uint16_t min_len, uint16_t max_len, void *dst, uint16_t *len); //!! Callback function. When ever user write to this characterstic,this function will execute
 
 static void bleprph_on_reset(int reason);
@@ -62,21 +69,46 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
 
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = &gatt_svr_svc_uuid.u,
-        .characteristics = (struct ble_gatt_chr_def[]){{
-                                                           .uuid = &gatt_svr_chr_uuid.u,     //!! UUID as given above
-                                                           .access_cb = gatt_svr_chr_access, //!! Callback function. When ever this characrstic will be accessed by user, this function will execute
-                                                           .val_handle = &notification_handle,
-                                                           .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY, //!! flags set permissions. In this case User can read this characterstic, can write to it,and get notified. 
-                                                       },
-                                                       {
-                                                           0, /* No more characteristics in this service. This is necessary */
-                                                       }},
+        .characteristics = (struct ble_gatt_chr_def[]){
+            {
+                .uuid = &gatt_svr_chr_uuid.u,     //!! UUID as given above
+                .access_cb = gatt_svr_chr_access, //!! Callback function. When ever this characrstic will be accessed by user, this function will execute
+                .val_handle = &notification_handle,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY, //!! flags set permissions. In this case User can read this characterstic, can write to it,and get notified. 
+            },
+            {
+                .uuid = &gatt_svr_chr_uuid2.u,     //!! UUID as given above
+                .access_cb = gatt_svr_chr_access2, //!! Callback function. When ever this characrstic will be accessed by user, this function will execute
+                .val_handle = &notification_handle,
+                .flags = BLE_GATT_CHR_F_READ, //!! flags set permissions. In this case User can read this characterstic, can write to it,and get notified. 
+            },
+            {
+                0, /* No more characteristics in this service. This is necessary */
+            }},
     },
-
     {
         0, /* No more services. This is necessary */
     },
 };
+
+static int gatt_svr_chr_access2(uint16_t conn_handle, uint16_t attr_handle,
+                               struct ble_gatt_access_ctxt *ctxt,
+                               void *arg)  //!! Callback function. When ever characrstic will be accessed by user, this function will execute
+{
+
+  int rc;
+
+  switch (ctxt->op)
+  {
+  case BLE_GATT_ACCESS_OP_READ_CHR: //!! In case user accessed this characterstic to read its value, bellow lines will execute
+    rc = os_mbuf_append(ctxt->om, &characteristic_received_value,
+                        sizeof characteristic_received_value);
+    return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+  default:
+    assert(0);
+    return BLE_ATT_ERR_UNLIKELY;
+  }
+}
 
 static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
                                struct ble_gatt_access_ctxt *ctxt,
@@ -167,9 +199,7 @@ void startBLE() //! Call this function to start BLE
 
   ESP_ERROR_CHECK(ret);
 
-  ESP_ERROR_CHECK(esp_nimble_hci_and_controller_init());
-
-  nimble_port_init();
+  ESP_ERROR_CHECK(nimble_port_init());
   /* Initialize the NimBLE host configuration. */
   ble_hs_cfg.reset_cb = bleprph_on_reset;
   ble_hs_cfg.sync_cb = bleprph_on_sync;
@@ -214,13 +244,8 @@ void stopBLE() //! Call this function to stop BLE
   int ret = nimble_port_stop();
   if (ret == 0)
   {
-    nimble_port_deinit();
-
-    ret = esp_nimble_hci_and_controller_deinit();
-    if (ret != ESP_OK)
-    {
-      ESP_LOGE(tag, "esp_nimble_hci_and_controller_deinit() failed with error: %d", ret);
-    }
+    ret = nimble_port_deinit();
+    ESP_LOGE(tag, "esp_nimble_hci_and_controller_deinit() returns: %d", ret);
   }
 }
 
