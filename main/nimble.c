@@ -45,6 +45,11 @@ char characteristic_received_value[5];                     //!! When client writ
 uint16_t min_length = 1;   //!! minimum length the client can write to a characterstic
 uint16_t max_length = 700; //!! maximum length the client can write to a characterstic
 
+static SemaphoreHandle_t led_high_sem;
+static volatile int led_value = 0;
+
+// Timer handle
+static TimerHandle_t reset_timer;
 
 //@_____________Forward declaration of some functions ___________
 void ble_store_config_init(void);
@@ -107,9 +112,13 @@ static int gatt_svr_chr_access2(uint16_t conn_handle, uint16_t attr_handle,
     rc = os_mbuf_append(ctxt->om, &characteristic_received_value,
                         sizeof characteristic_received_value);
 
-    gpio_state ^= 1;
-    gpio_set_level(INPUT_PIN_D1, gpio_state);
-    ESP_LOGI(tag, "GPIO toggled to %d", gpio_state);
+    if (led_value == 1) {
+        printf("Gate is currently in operation. DO NOTHING!\n");
+    } else {
+        gpio_state ^= 1;
+        gpio_set_level(INPUT_PIN_D1, gpio_state);
+        ESP_LOGI(tag, "GPIO toggled to %d", gpio_state);
+    }
 
     return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
   default:
@@ -248,7 +257,7 @@ void stopBLE() //! Call this function to stop BLE
 {
   //! Below is the sequence of APIs to be called to disable/deinit NimBLE host and ESP controller:
   printf("\n Stoping BLE and notification task \n");
-  // vTaskDelete(xHandle);
+  // vTaskDelete(xHandle); // could be deprecated
   int ret = nimble_port_stop();
   if (ret == 0)
   {
@@ -582,4 +591,70 @@ void bleprph_host_task(void *param)
   nimble_port_freertos_deinit();
 }
 
-//@____________________________________________________________________
+/////////////////////
+// CATCH LED EVENT //
+/////////////////////
+
+// ISR: rising edge
+static void IRAM_ATTR gpio_isr_handler(void *arg)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    // Signal the task
+    xSemaphoreGiveFromISR(led_high_sem, &xHigherPriorityTaskWoken);
+
+    if (xHigherPriorityTaskWoken) {
+        portYIELD_FROM_ISR();
+    }
+}
+
+// Timer callback: reset led_value after 10 seconds
+static void reset_timer_callback(TimerHandle_t xTimer)
+{
+    led_value = 0;
+    printf("No HIGH event for 10 seconds. led_value reset to 0.\n");
+}
+
+static void wait_for_high_task(void *arg)
+{
+    while (1) {
+        // Wait for rising edge
+        xSemaphoreTake(led_high_sem, portMAX_DELAY);
+
+        // Set value to 1
+        led_value = 1;
+        printf("GPIO is HIGH! led_value = 1\n");
+
+        // Restart the 10-second timer
+        xTimerStart(reset_timer, 0);
+    }
+}
+
+void gpio_isr_init() {
+
+    // Create semaphore
+    led_high_sem = xSemaphoreCreateBinary();
+
+    // Create timer (10 seconds)
+    reset_timer = xTimerCreate(
+        "reset_timer",
+        pdMS_TO_TICKS(10000),   // 10 seconds
+        pdFALSE,                // one-shot timer
+        NULL,
+        reset_timer_callback
+    );
+
+    // Create task
+    xTaskCreate(
+        wait_for_high_task,
+        "wait_for_high_task",
+        2048,
+        NULL,
+        10,
+        NULL
+    );
+
+    // Install ISR service
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(LED_PIN, gpio_isr_handler, NULL);
+}
