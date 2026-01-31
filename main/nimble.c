@@ -3,6 +3,7 @@
 #include <string.h>
 #include "esp_log.h"
 #include "nvs_flash.h"
+#include "driver/gpio.h"
 #include "esp_nimble_hci.h"
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
@@ -91,6 +92,8 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
     },
 };
 
+static uint8_t gpio_state = 0;
+
 static int gatt_svr_chr_access2(uint16_t conn_handle, uint16_t attr_handle,
                                struct ble_gatt_access_ctxt *ctxt,
                                void *arg)  //!! Callback function. When ever characrstic will be accessed by user, this function will execute
@@ -103,6 +106,11 @@ static int gatt_svr_chr_access2(uint16_t conn_handle, uint16_t attr_handle,
   case BLE_GATT_ACCESS_OP_READ_CHR: //!! In case user accessed this characterstic to read its value, bellow lines will execute
     rc = os_mbuf_append(ctxt->om, &characteristic_received_value,
                         sizeof characteristic_received_value);
+
+    gpio_state ^= 1;
+    gpio_set_level(INPUT_PIN_D1, gpio_state);
+    ESP_LOGI(tag, "GPIO toggled to %d", gpio_state);
+
     return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
   default:
     assert(0);

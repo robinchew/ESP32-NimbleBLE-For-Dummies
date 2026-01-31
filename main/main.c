@@ -1,6 +1,7 @@
 #include "esp_log.h"
 #include "esp_pm.h"
 #include "esp_sleep.h"
+#include "driver/gpio.h"
 #include "nvs_flash.h"
 #include "esp_nimble_hci.h"
 #include "nimble/nimble_port.h"
@@ -36,6 +37,18 @@ void app_main(void)
     notification="Hello There";
     xTaskCreate(vTasksendNotification, "vTasksendNotification", 4096, NULL, 1, &xHandle);
 
+    gpio_config_t io_conf = {
+        // Set pull down resistor
+        .pin_bit_mask = (1ULL << INPUT_PIN_D0) | (1ULL << INPUT_PIN_D1) | (1ULL << INPUT_PIN_D2),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE
+    };
+
+    gpio_config(&io_conf);
+
+    /*
     while(1) {
         ESP_LOGI(tag, "wait...");
         vTaskDelay(10000 / portTICK_PERIOD_MS);
@@ -46,4 +59,5 @@ void app_main(void)
         esp_light_sleep_start();
         ESP_LOGI(tag, "continue from light sleep");
     }
+    */
 }

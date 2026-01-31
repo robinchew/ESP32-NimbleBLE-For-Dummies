@@ -14,5 +14,6 @@ void startNVS();
 
 #endif
 
-
-
+#define INPUT_PIN_D0 2 // GPIO2 Strapping Pin (SPI Boot & Download Boot)
+#define INPUT_PIN_D1 3
+#define INPUT_PIN_D2 4
