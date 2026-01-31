@@ -40,7 +40,6 @@ static const ble_uuid128_t gatt_svr_chr_uuid2 =
     BLE_UUID128_INIT(0x1e, 0x54, 0x95, 0xfa, 0x5b, 0xb9, 0x24, 0xa7, 0xbd, 0x46, 0x68, 0xc4, 0xbf, 0x21, 0x09, 0x9f);
 
 //@_____Some variables used in service and characteristic declaration______
-char characteristic_value[50] = "I am characteristic value"; //!! When client read characteristic, he get this value. You can also set this value in your code.
 char characteristic_received_value[5];                     //!! When client write to characteristic , he set value of this. You can read it in code.
 
 uint16_t min_length = 1;   //!! minimum length the client can write to a characterstic
@@ -137,9 +136,8 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
   switch (ctxt->op)
   {
   case BLE_GATT_ACCESS_OP_READ_CHR: //!! In case user accessed this characterstic to read its value, bellow lines will execute
-    rc = os_mbuf_append(ctxt->om, &characteristic_value,
-                        sizeof characteristic_value);
-    return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+    trg_pulse();
+    return 0;
 
   case BLE_GATT_ACCESS_OP_WRITE_CHR: //!! In case user accessed this characterstic to write, bellow lines will executed.
     rc = gatt_svr_chr_write(ctxt->om, min_length, max_length, &characteristic_received_value, NULL); //!! Function "gatt_svr_chr_write" will fire.
@@ -250,7 +248,7 @@ void startBLE() //! Call this function to start BLE
   /* XXX Need to have template for store */
 
   nimble_port_freertos_init(bleprph_host_task);
-  printf("characteristic_value at end of startBLE=%s\n", characteristic_value);
+  printf("BLE Started\n");
 }
 
 void stopBLE() //! Call this function to stop BLE
