@@ -12,6 +12,7 @@
 #include "services/gap/ble_svc_gap.h"
 #include "bleprph.h"
 #include "nimble.h"
+#include "trg.h"
 
 static const char *tag = "Main";
 
@@ -58,6 +59,7 @@ void app_main(void)
     gpio_config(&input_conf);
 
     gpio_isr_init();
+    trg_init();
 
     /*
     while(1) {

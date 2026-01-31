@@ -15,6 +15,7 @@
 #include "services/gatt/ble_svc_gatt.h"
 #include "bleprph.h"
 #include "nimble.h"
+#include "trg.h"
 
 //@______________________Declare some variables____________________________
 esp_err_t ret;
@@ -97,8 +98,6 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
     },
 };
 
-static uint8_t gpio_state = 0;
-
 static int gatt_svr_chr_access2(uint16_t conn_handle, uint16_t attr_handle,
                                struct ble_gatt_access_ctxt *ctxt,
                                void *arg)  //!! Callback function. When ever characrstic will be accessed by user, this function will execute
@@ -115,9 +114,8 @@ static int gatt_svr_chr_access2(uint16_t conn_handle, uint16_t attr_handle,
     if (led_value == 1) {
         printf("Gate is currently in operation. DO NOTHING!\n");
     } else {
-        gpio_state ^= 1;
-        gpio_set_level(INPUT_PIN_D1, gpio_state);
-        ESP_LOGI(tag, "GPIO toggled to %d", gpio_state);
+        trg_pulse();
+        ESP_LOGI(tag, "TRG pulsed");
     }
 
     return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
