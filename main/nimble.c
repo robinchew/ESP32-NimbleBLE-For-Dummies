@@ -108,10 +108,10 @@ static int gatt_svr_chr_access2(uint16_t conn_handle, uint16_t attr_handle,
   switch (ctxt->op)
   {
   case BLE_GATT_ACCESS_OP_READ_CHR: //!! In case user accessed this characterstic to read its value, bellow lines will execute
-    rc = os_mbuf_append(ctxt->om, &characteristic_received_value,
-                        sizeof characteristic_received_value);
-
     int reed_level = gpio_get_level(REED_PIN);
+
+    rc = os_mbuf_append(ctxt->om, &reed_level, sizeof reed_level);
+
     if (led_value == 1) {
         printf("Gate is currently in operation. DO NOTHING!\n");
     }
