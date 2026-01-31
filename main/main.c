@@ -40,23 +40,36 @@ void app_main(void)
 
     gpio_config_t output_conf = {
         // Set pull down resistor
+        // for simple output
         .pin_bit_mask = 1ULL << TRG_PIN,
         .mode = GPIO_MODE_OUTPUT,
         .pull_down_en = GPIO_PULLDOWN_ENABLE,
         .pull_up_en = GPIO_PULLUP_DISABLE,
-        .intr_type = GPIO_INTR_POSEDGE
+        .intr_type = GPIO_INTR_DISABLE
     };
     gpio_config(&output_conf);
 
     gpio_config_t input_conf = {
         // Set pull down resistor
-        .pin_bit_mask = (1ULL << LED_PIN) | (1ULL >> REED_PIN),
+        // and high interrupt
+        .pin_bit_mask = 1ULL << LED_PIN,
         .mode = GPIO_MODE_INPUT,
         .pull_down_en = GPIO_PULLDOWN_ENABLE,
         .pull_up_en = GPIO_PULLUP_DISABLE,
         .intr_type = GPIO_INTR_POSEDGE
     };
     gpio_config(&input_conf);
+
+    gpio_config_t reed_input_conf = {
+        // Set pull down resistor
+        // for simple read
+        .pin_bit_mask = 1ULL << REED_PIN,
+        .mode = GPIO_MODE_INPUT,
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE
+    };
+    gpio_config(&reed_input_conf);
 
     gpio_isr_init();
     trg_init();

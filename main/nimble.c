@@ -111,11 +111,13 @@ static int gatt_svr_chr_access2(uint16_t conn_handle, uint16_t attr_handle,
     rc = os_mbuf_append(ctxt->om, &characteristic_received_value,
                         sizeof characteristic_received_value);
 
+    int reed_level = gpio_get_level(REED_PIN);
     if (led_value == 1) {
         printf("Gate is currently in operation. DO NOTHING!\n");
-    } else {
+    }
+    else if (reed_level == 1) {
         trg_pulse();
-        ESP_LOGI(tag, "TRG pulsed");
+        ESP_LOGI(tag, "TRG pulsed on closed gate");
     }
 
     return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
@@ -198,7 +200,7 @@ void vTasksendNotification() //! For sending notifications periodically as freet
     }
     else
     {
-      printf("No one subscribed to notifications\n");
+      // printf("No one subscribed to notifications\n");
     }
     vTaskDelay(2000 / portTICK_PERIOD_MS);
   }
