@@ -107,18 +107,19 @@ static int gatt_svr_chr_access2(uint16_t conn_handle, uint16_t attr_handle,
   switch (ctxt->op)
   {
   case BLE_GATT_ACCESS_OP_READ_CHR: //!! In case user accessed this characterstic to read its value, bellow lines will execute
-    int reed_level = gpio_get_level(REED_PIN);
+    // int reed_level = gpio_get_level(REED_PIN);
+    // bool gate_is_fully_open = reed_level == 1;
+    bool gate_is_operating = led_value == 1;
+    bool gate_is_fully_closed = led_value == 0;
 
-    rc = os_mbuf_append(ctxt->om, &reed_level, sizeof reed_level);
-
-    if (led_value == 1) {
+    if (gate_is_operating) {
         printf("Gate is currently in operation. DO NOTHING!\n");
     }
-    else if (reed_level == 1) {
+    else if (gate_is_fully_closed) {
         trg_pulse();
         ESP_LOGI(tag, "TRG pulsed on closed gate");
     }
-
+    rc = os_mbuf_append(ctxt->om, (const void *)&led_value, sizeof led_value);
     return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
   default:
     assert(0);
