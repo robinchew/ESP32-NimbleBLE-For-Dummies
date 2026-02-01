@@ -85,7 +85,6 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
             {
                 .uuid = &gatt_svr_chr_uuid2.u,     //!! UUID as given above
                 .access_cb = gatt_svr_chr_access2, //!! Callback function. When ever this characrstic will be accessed by user, this function will execute
-                .val_handle = &notification_handle,
                 .flags = BLE_GATT_CHR_F_READ, //!! flags set permissions. In this case User can read this characterstic, can write to it,and get notified. 
             },
             {
@@ -184,11 +183,19 @@ void vTasksendNotification() //! For sending notifications periodically as freet
 {
   int rc;
   struct os_mbuf *om;
+  int count = 0;
+  char buffer[
+    sizeof("c")
+    + 11 // max int digits + sign
+  ];
   while (1)
   {
+    snprintf(buffer, sizeof(buffer), "%s%d", "c", count);
+    count += 1;
+    printf("notfista %d\n", notify_state);
     if (notify_state) //!! This value is checked so that we don't send notifications if no one has subscribed to our notification handle.
     {
-      om = ble_hs_mbuf_from_flat(notification, sizeof(notification));
+      om = ble_hs_mbuf_from_flat(buffer, sizeof(buffer));
       rc = ble_gattc_notify_custom(conn_handle, notification_handle, om);
       printf("\n rc=%d\n", rc);
 
@@ -518,10 +525,12 @@ bleprph_gap_event(struct ble_gap_event *event, void *arg)
                 event->subscribe.reason,
                 event->subscribe.prev_notify,
                 event->subscribe.cur_notify,
-                event->subscribe.cur_notify, notification_handle, //!! Client Subscribed to notification_handle
+                event->subscribe.cur_notify,
+                notification_handle, //!! Client Subscribed to notification_handle
                 event->subscribe.prev_indicate,
                 event->subscribe.cur_indicate);
 
+    printf("atrn=%d nothand=%d\n", event->subscribe.attr_handle, notification_handle);
     if (event->subscribe.attr_handle == notification_handle)
     {
       printf("\nSubscribed with notification_handle =%d\n", event->subscribe.attr_handle);
