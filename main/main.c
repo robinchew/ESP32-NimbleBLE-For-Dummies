@@ -49,17 +49,6 @@ void app_main(void)
     };
     gpio_config(&output_conf);
 
-    gpio_config_t input_conf = {
-        // Set pull down resistor
-        // and high interrupt
-        .pin_bit_mask = 1ULL << LED_PIN,
-        .mode = GPIO_MODE_INPUT,
-        .pull_down_en = GPIO_PULLDOWN_ENABLE,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .intr_type = GPIO_INTR_POSEDGE
-    };
-    gpio_config(&input_conf);
-
     gpio_config_t reed_input_conf = {
         // Set pull down resistor
         // for simple read

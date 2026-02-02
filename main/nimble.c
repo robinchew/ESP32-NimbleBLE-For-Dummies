@@ -614,6 +614,16 @@ static void wait_for_high_task(void *arg)
 }
 
 void gpio_isr_init() {
+    gpio_config_t led_input_conf = {
+        // Set pull down resistor
+        // and high interrupt
+        .pin_bit_mask = 1ULL << LED_PIN,
+        .mode = GPIO_MODE_INPUT,
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .intr_type = GPIO_INTR_POSEDGE
+    };
+    gpio_config(&led_input_conf);
 
     // Create semaphore
     led_high_sem = xSemaphoreCreateBinary();
