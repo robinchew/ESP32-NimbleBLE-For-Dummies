@@ -666,7 +666,7 @@ void gpio_isr_led_init() {
 
     // Install ISR service
     gpio_install_isr_service(0);
-    gpio_isr_handler_add(LED_PIN, gpio_isr_handler, NULL);
+    gpio_isr_handler_add(LED_PIN, gpio_isr_handler, (void *)LED_PIN);
 }
 
 //////////////////////
@@ -684,6 +684,8 @@ void gpio_isr_reed_init() {
         .intr_type = GPIO_INTR_POSEDGE
     };
     gpio_config(&reed_input_conf);
+
+    gpio_isr_handler_add(REED_PIN, gpio_isr_handler, (void *)REED_PIN);
 }
 
 void queue_init() {
