@@ -594,8 +594,8 @@ static void IRAM_ATTR gpio_isr_handler(void *arg)
 // Timer callback: reset led_value after 10 seconds
 static void reset_timer_callback(TimerHandle_t xTimer)
 {
-    led_value = 0;
-    printf("No HIGH event for 10 seconds. led_value reset to 0.\n");
+    led_value = gpio_get_level(LED_PIN);
+    printf("No HIGH event for 10 seconds. led_value reset to %d.\n", led_value);
 }
 
 static void wait_for_high_task(void *arg)
