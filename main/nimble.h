@@ -11,7 +11,9 @@ void startBLE();
 void stopBLE();
 void startNVS();
 
-void gpio_isr_init();
+void gpio_isr_led_init();
+void gpio_isr_reed_init();
+void queue_init();
 
 #endif
 

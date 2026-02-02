@@ -49,18 +49,9 @@ void app_main(void)
     };
     gpio_config(&output_conf);
 
-    gpio_config_t reed_input_conf = {
-        // Set pull down resistor
-        // for simple read
-        .pin_bit_mask = 1ULL << REED_PIN,
-        .mode = GPIO_MODE_INPUT,
-        .pull_down_en = GPIO_PULLDOWN_ENABLE,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE
-    };
-    gpio_config(&reed_input_conf);
-
-    gpio_isr_init();
+    queue_init();
+    gpio_isr_led_init();
+    gpio_isr_reed_init();
     trg_init();
 
     /*

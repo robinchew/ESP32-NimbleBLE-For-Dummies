@@ -16,6 +16,7 @@
 #include "bleprph.h"
 #include "nimble.h"
 #include "trg.h"
+#include "freertos/ringbuf.h"
 
 //@______________________Declare some variables____________________________
 esp_err_t ret;
@@ -45,8 +46,13 @@ char characteristic_received_value[5];                     //!! When client writ
 uint16_t min_length = 1;   //!! minimum length the client can write to a characterstic
 uint16_t max_length = 700; //!! maximum length the client can write to a characterstic
 
-static SemaphoreHandle_t led_high_sem;
+static QueueHandle_t gpio_evt_queue = NULL;
+static RingbufHandle_t event_ringbuf = NULL;
 static volatile int led_value = 0;
+typedef struct {
+    uint32_t pin;
+    int64_t  timestamp_us;
+} gpio_event_t;
 
 // Timer handle
 static TimerHandle_t reset_timer;
@@ -581,14 +587,13 @@ void bleprph_host_task(void *param)
 // ISR: rising edge
 static void IRAM_ATTR gpio_isr_handler(void *arg)
 {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    gpio_event_t evt = {
+        .pin = (uint32_t)arg,
+        .timestamp_us = esp_timer_get_time()
+    };
 
-    // Signal the task
-    xSemaphoreGiveFromISR(led_high_sem, &xHigherPriorityTaskWoken);
-
-    if (xHigherPriorityTaskWoken) {
-        portYIELD_FROM_ISR();
-    }
+    /* Send event to queue (ISR-safe) */
+    xQueueSendFromISR(gpio_evt_queue, &evt, NULL);
 }
 
 // Timer callback: reset led_value after 10 seconds
@@ -600,20 +605,35 @@ static void reset_timer_callback(TimerHandle_t xTimer)
 
 static void wait_for_high_task(void *arg)
 {
+    gpio_event_t evt;
     while (1) {
         // Wait for rising edge
-        xSemaphoreTake(led_high_sem, portMAX_DELAY);
+        if (xQueueReceive(gpio_evt_queue, &evt, portMAX_DELAY)) {
+            /* Store event in ring buffer */
+            if (xRingbufferSend(event_ringbuf,
+                                &evt,
+                                sizeof(evt),
+                                pdMS_TO_TICKS(10)) != pdTRUE) {
+                ESP_LOGW(tag, "Ring buffer full, event dropped");
+            } else {
+                ESP_LOGI(tag,
+                         "Event: GPIO %ld HIGH at %lld us",
+                         evt.pin,
+                         evt.timestamp_us);
+            }
 
-        // Set value to 1
-        led_value = 1;
-        printf("GPIO is HIGH! led_value = 1\n");
+            // Set value to 1
+            led_value = 1;
+            printf("GPIO is HIGH! led_value = 1\n");
 
-        // Restart the 10-second timer
-        xTimerStart(reset_timer, 0);
+            // Restart the 10-second timer
+            xTimerStart(reset_timer, 0);
+        }
+
     }
 }
 
-void gpio_isr_init() {
+void gpio_isr_led_init() {
     gpio_config_t led_input_conf = {
         // Set pull down resistor
         // and high interrupt
@@ -624,9 +644,6 @@ void gpio_isr_init() {
         .intr_type = GPIO_INTR_POSEDGE
     };
     gpio_config(&led_input_conf);
-
-    // Create semaphore
-    led_high_sem = xSemaphoreCreateBinary();
 
     // Create timer (10 seconds)
     reset_timer = xTimerCreate(
@@ -650,4 +667,29 @@ void gpio_isr_init() {
     // Install ISR service
     gpio_install_isr_service(0);
     gpio_isr_handler_add(LED_PIN, gpio_isr_handler, NULL);
+}
+
+//////////////////////
+// CATCH REED EVENT //
+//////////////////////
+
+void gpio_isr_reed_init() {
+    gpio_config_t reed_input_conf = {
+        // Set pull down resistor
+        // for simple read
+        .pin_bit_mask = 1ULL << REED_PIN,
+        .mode = GPIO_MODE_INPUT,
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .intr_type = GPIO_INTR_POSEDGE
+    };
+    gpio_config(&reed_input_conf);
+}
+
+void queue_init() {
+    gpio_evt_queue = xQueueCreate(10, sizeof(gpio_event_t));
+    event_ringbuf = xRingbufferCreate(
+        1024,                 // size in bytes
+        RINGBUF_TYPE_BYTEBUF  // variable-sized items
+    );
 }
