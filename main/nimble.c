@@ -156,29 +156,6 @@ int x=strcmp(characteristic_received_value,stp);
   }
 }
 
-
-void sendNotification() //!Use this function to send notification once (after setting value of variable "notification")
-{
-  int rc;
-  struct os_mbuf *om;
-
-  if (notify_state) //!! This value is checked so that we don't send notifications if user has not subscribed to our notification handle.
-  {
-    om = ble_hs_mbuf_from_flat(notification, sizeof(notification)); //! Value of variable "notification" will be sent as notification.
-
-    rc = ble_gattc_notify_custom(conn_handle, notification_handle, om);
-
-    if (rc != 0)
-    {
-      printf("\n error notifying; rc\n");
-    }
-  }
-  else
-  {
-    printf("user not subscribed to notifications.\n");
-  }
-}
-
 void vTasksendNotification() //! For sending notifications periodically as freetos task(after setting value of variable"notification")
 {
   int rc;
@@ -192,7 +169,6 @@ void vTasksendNotification() //! For sending notifications periodically as freet
   {
     snprintf(buffer, sizeof(buffer), "%s%d", "c", count);
     count += 1;
-    printf("notfista %d\n", notify_state);
     if (notify_state) //!! This value is checked so that we don't send notifications if no one has subscribed to our notification handle.
     {
       om = ble_hs_mbuf_from_flat(buffer, sizeof(buffer));
@@ -530,7 +506,6 @@ bleprph_gap_event(struct ble_gap_event *event, void *arg)
                 event->subscribe.prev_indicate,
                 event->subscribe.cur_indicate);
 
-    printf("atrn=%d nothand=%d\n", event->subscribe.attr_handle, notification_handle);
     if (event->subscribe.attr_handle == notification_handle)
     {
       printf("\nSubscribed with notification_handle =%d\n", event->subscribe.attr_handle);
