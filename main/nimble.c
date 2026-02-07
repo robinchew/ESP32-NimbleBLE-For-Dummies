@@ -583,9 +583,20 @@ void bleprph_host_task(void *param)
 // CATCH LED EVENT //
 /////////////////////
 
+#define DEBOUNCE_TIME_US        200000 // 200ms in microseconds
+#define ESP_INTR_FLAG_DEFAULT   0
+
 // ISR: rising edge
 static void IRAM_ATTR gpio_isr_handler(void *arg)
 {
+    static int64_t last_time = 0;
+    int64_t now = esp_timer_get_time();
+
+    if (now - last_time <= DEBOUNCE_TIME_US) {
+        // Software Debounce Logic
+        return;
+    }
+    last_time = now;
     gpio_event_t evt = {
         .pin = (uint32_t)arg,
         .timestamp_us = esp_timer_get_time()
