@@ -47,7 +47,6 @@ uint16_t min_length = 1;   //!! minimum length the client can write to a charact
 uint16_t max_length = 700; //!! maximum length the client can write to a characterstic
 
 static QueueHandle_t gpio_evt_queue = NULL;
-static RingbufHandle_t event_ringbuf = NULL;
 static volatile int led_value = 0;
 typedef struct {
     uint32_t pin;
@@ -609,18 +608,10 @@ static void wait_for_high_task(void *arg)
     while (1) {
         // Wait for rising edge
         if (xQueueReceive(gpio_evt_queue, &evt, portMAX_DELAY)) {
-            /* Store event in ring buffer */
-            if (xRingbufferSend(event_ringbuf,
-                                &evt,
-                                sizeof(evt),
-                                pdMS_TO_TICKS(10)) != pdTRUE) {
-                ESP_LOGW(tag, "Ring buffer full, event dropped");
-            } else {
-                ESP_LOGI(tag,
-                         "Event: GPIO %ld HIGH at %lld us",
-                         evt.pin,
-                         evt.timestamp_us);
-            }
+            ESP_LOGI(tag,
+                "Event: GPIO %ld HIGH at %lld us",
+                evt.pin,
+                evt.timestamp_us);
 
             // Set value to 1
             led_value = 1;
@@ -690,8 +681,4 @@ void gpio_isr_reed_init() {
 
 void queue_init() {
     gpio_evt_queue = xQueueCreate(10, sizeof(gpio_event_t));
-    event_ringbuf = xRingbufferCreate(
-        1024,                 // size in bytes
-        RINGBUF_TYPE_BYTEBUF  // variable-sized items
-    );
 }
