@@ -13,10 +13,11 @@
 #include "console/console.h"
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
+#include "freertos/ringbuf.h"
 #include "bleprph.h"
 #include "nimble.h"
+#include "pin.h"
 #include "trg.h"
-#include "freertos/ringbuf.h"
 
 //@______________________Declare some variables____________________________
 esp_err_t ret;

@@ -12,6 +12,7 @@
 #include "services/gap/ble_svc_gap.h"
 #include "bleprph.h"
 #include "nimble.h"
+#include "pin.h"
 #include "trg.h"
 
 static const char *tag = "Main";

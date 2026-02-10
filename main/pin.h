@@ -2,6 +2,6 @@
 #define INPUT_PIN_D1 3
 #define INPUT_PIN_D2 4
 
-#define REED_PIN INPUT_PIN_D0
+#define LED_PIN INPUT_PIN_D0
 #define TRG_PIN INPUT_PIN_D1
-#define LED_PIN INPUT_PIN_D2
+#define REED_PIN INPUT_PIN_D2
