@@ -37,7 +37,7 @@ void app_main(void)
 
     //!! Start the FreeRTOS task to notify the client
     notification="Hello There";
-    xTaskCreate(vTasksendNotification, "vTasksendNotification", 4096, NULL, 1, &xHandle);
+    // xTaskCreate(vTasksendNotification, "vTasksendNotification", 4096, NULL, 1, &xHandlt);
 
     gpio_config_t output_conf = {
         // Set pull down resistor

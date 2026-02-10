@@ -43,6 +43,7 @@ static const ble_uuid128_t gatt_svr_chr_uuid2 =
 
 //@_____Some variables used in service and characteristic declaration______
 char characteristic_received_value[5];                     //!! When client write to characteristic , he set value of this. You can read it in code.
+char notify_buf[7];
 
 uint16_t min_length = 1;   //!! minimum length the client can write to a characterstic
 uint16_t max_length = 700; //!! maximum length the client can write to a characterstic
@@ -85,13 +86,13 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
             {
                 .uuid = &gatt_svr_chr_uuid.u,     //!! UUID as given above
                 .access_cb = gatt_svr_chr_access, //!! Callback function. When ever this characrstic will be accessed by user, this function will execute
-                .val_handle = &notification_handle,
-                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY, //!! flags set permissions. In this case User can read this characterstic, can write to it,and get notified. 
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
             },
             {
-                .uuid = &gatt_svr_chr_uuid2.u,     //!! UUID as given above
-                .access_cb = gatt_svr_chr_access_trg_on_close, //!! Callback function. When ever this characrstic will be accessed by user, this function will execute
-                .flags = BLE_GATT_CHR_F_READ, //!! flags set permissions. In this case User can read this characterstic, can write to it,and get notified. 
+                .uuid = &gatt_svr_chr_uuid2.u,
+                .access_cb = gatt_svr_chr_access_trg_on_close,
+                .val_handle = &notification_handle,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
             },
             {
                 0, /* No more characteristics in this service. This is necessary */
@@ -442,8 +443,7 @@ bleprph_advertise(void)
  *                                  of the return code is specific to the
  *                                  particular GAP event being signalled.
  */
-static int
-bleprph_gap_event(struct ble_gap_event *event, void *arg)
+static int bleprph_gap_event(struct ble_gap_event *event, void *arg)
 {
   struct ble_gap_conn_desc desc;
   int rc;
@@ -580,6 +580,28 @@ void bleprph_host_task(void *param)
   nimble_port_freertos_deinit();
 }
 
+static char* get_pin_label(int pin_num, char* buf) {
+    switch(pin_num) {
+        case LED_PIN:
+            buf = "LED";
+            break;
+        case REED_PIN:
+            buf = "REED";
+            break;
+        default:
+            buf = "UNKN";
+            break;
+    }
+    return buf;
+}
+
+void ble_notify(char* buf, size_t buf_size) {
+    struct os_mbuf *om;
+    printf("sizeoff %d %d\n", sizeof(buf), buf_size);
+    om = ble_hs_mbuf_from_flat(buf, buf_size);
+    ble_gattc_notify_custom(conn_handle, notification_handle, om);
+}
+
 /////////////////////
 // CATCH LED EVENT //
 /////////////////////
@@ -600,39 +622,48 @@ static void IRAM_ATTR gpio_isr_handler(void *arg)
 static void reset_timer_callback(TimerHandle_t xTimer)
 {
     led_value = gpio_get_level(LED_PIN);
-    printf("No HIGH event for 10 seconds. led_value reset to %d.\n", led_value);
-}
-
-static char* get_pin_label(int pin_num, char* buf) {
-    switch(pin_num) {
-        case LED_PIN:
-            buf = "LED";
-            break;
-        case REED_PIN:
-            buf = "REED";
+    switch(led_value) {
+        case 0:
+            strcpy(notify_buf, "FCLOSE");
             break;
         default:
-            buf = "UNKN";
+            strcpy(notify_buf, "POPEN");
             break;
     }
-    return buf;
+    ble_notify(notify_buf, sizeof(notify_buf));
+
+    printf("No HIGH event for 10 seconds. led_value reset to %d.\n", led_value);
 }
 
 static void wait_for_high_task(void *arg)
 {
     gpio_event_t evt;
-    char buf[5];
+    char label_buf[5];
+
     while (1) {
         // Wait for rising edge
         if (xQueueReceive(gpio_evt_queue, &evt, portMAX_DELAY)) {
             ESP_LOGI(tag,
                 "Event: GPIO %s (%ld) HIGH at %lld us",
-                get_pin_label(evt.pin, buf),
+                get_pin_label(evt.pin, label_buf),
                 evt.pin,
                 evt.timestamp_us);
 
-            // Set value to 1
             led_value = 1;
+
+            switch(evt.pin) {
+                case LED_PIN:
+                    strcpy(notify_buf, "OPERAT");
+                    break;
+                case REED_PIN:
+                    strcpy(notify_buf, "FOPEN");
+                    break;
+                default:
+                    strcpy(notify_buf, "UNKN");
+
+                    break;
+            }
+            ble_notify(notify_buf, sizeof(notify_buf));
 
             // Restart the 10-second timer
             xTimerStart(reset_timer, 0);
