@@ -65,7 +65,7 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
                                struct ble_gatt_access_ctxt *ctxt,
                                void *arg); //!! Callback function. When ever characrstic will be accessed by user, this function will execute
 
-static int gatt_svr_chr_access2(uint16_t conn_handle, uint16_t attr_handle,
+static int gatt_svr_chr_access_trg_on_close(uint16_t conn_handle, uint16_t attr_handle,
                                 struct ble_gatt_access_ctxt *ctxt,
                                 void *arg); //!! Callback function. When ever characrstic will be accessed by user, this function will execute
 
@@ -90,7 +90,7 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
             },
             {
                 .uuid = &gatt_svr_chr_uuid2.u,     //!! UUID as given above
-                .access_cb = gatt_svr_chr_access2, //!! Callback function. When ever this characrstic will be accessed by user, this function will execute
+                .access_cb = gatt_svr_chr_access_trg_on_close, //!! Callback function. When ever this characrstic will be accessed by user, this function will execute
                 .flags = BLE_GATT_CHR_F_READ, //!! flags set permissions. In this case User can read this characterstic, can write to it,and get notified. 
             },
             {
@@ -102,7 +102,7 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
     },
 };
 
-static int gatt_svr_chr_access2(uint16_t conn_handle, uint16_t attr_handle,
+static int gatt_svr_chr_access_trg_on_close(uint16_t conn_handle, uint16_t attr_handle,
                                struct ble_gatt_access_ctxt *ctxt,
                                void *arg)  //!! Callback function. When ever characrstic will be accessed by user, this function will execute
 {
@@ -603,20 +603,36 @@ static void reset_timer_callback(TimerHandle_t xTimer)
     printf("No HIGH event for 10 seconds. led_value reset to %d.\n", led_value);
 }
 
+static char* get_pin_label(int pin_num, char* buf) {
+    switch(pin_num) {
+        case LED_PIN:
+            buf = "LED";
+            break;
+        case REED_PIN:
+            buf = "REED";
+            break;
+        default:
+            buf = "UNKN";
+            break;
+    }
+    return buf;
+}
+
 static void wait_for_high_task(void *arg)
 {
     gpio_event_t evt;
+    char buf[5];
     while (1) {
         // Wait for rising edge
         if (xQueueReceive(gpio_evt_queue, &evt, portMAX_DELAY)) {
             ESP_LOGI(tag,
-                "Event: GPIO %ld HIGH at %lld us",
+                "Event: GPIO %s (%ld) HIGH at %lld us",
+                get_pin_label(evt.pin, buf),
                 evt.pin,
                 evt.timestamp_us);
 
             // Set value to 1
             led_value = 1;
-            printf("GPIO is HIGH! led_value = 1\n");
 
             // Restart the 10-second timer
             xTimerStart(reset_timer, 0);
