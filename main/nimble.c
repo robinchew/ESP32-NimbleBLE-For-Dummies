@@ -630,7 +630,7 @@ static void reset_timer_callback(TimerHandle_t xTimer)
             strcpy(notify_buf, "POPEN");
             break;
     }
-    ble_notify(notify_buf, sizeof(notify_buf));
+    ble_notify(notify_buf, strlen(notify_buf));
 
     printf("No HIGH event for 10 seconds. led_value reset to %d.\n", led_value);
 }
@@ -663,7 +663,7 @@ static void wait_for_high_task(void *arg)
 
                     break;
             }
-            ble_notify(notify_buf, sizeof(notify_buf));
+            ble_notify(notify_buf, strlen(notify_buf));
 
             // Restart the 10-second timer
             xTimerStart(reset_timer, 0);
