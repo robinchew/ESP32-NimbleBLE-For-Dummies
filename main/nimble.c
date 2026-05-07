@@ -53,6 +53,7 @@ static volatile int led_value = 0;
 typedef struct {
     uint32_t pin;
     int64_t  timestamp_us;
+    int64_t period;
 } gpio_event_t;
 
 // Timer handle
@@ -609,9 +610,15 @@ void ble_notify(char* buf, size_t buf_size) {
 // ISR: rising edge
 static void IRAM_ATTR gpio_isr_handler(void *arg)
 {
+    static int64_t last_time = 0;
+    int64_t now = esp_timer_get_time(); // Get time in microseconds
+    int64_t diff = now - last_time;
+    last_time = now;
+
     gpio_event_t evt = {
         .pin = (uint32_t)arg,
-        .timestamp_us = esp_timer_get_time()
+        .timestamp_us = esp_timer_get_time(),
+        .period = diff
     };
 
     /* Send event to queue (ISR-safe) */
@@ -651,6 +658,7 @@ static void wait_for_high_task(void *arg)
 
             led_value = 1;
 
+            /*
             switch(evt.pin) {
                 case LED_PIN:
                     strcpy(notify_buf, "OPERAT");
@@ -662,6 +670,23 @@ static void wait_for_high_task(void *arg)
                     strcpy(notify_buf, "UNKN");
 
                     break;
+            }
+            */
+            float period_ms = evt.period / 1000.0;
+            float frequency = 1000.0 / period_ms;
+
+            // Logic to differentiate 1Hz and 4Hz
+            // 1Hz = 1000ms period
+            // 4Hz = 250ms period
+            // Threshold set at 500ms
+            if (period_ms > 700 && period_ms < 1300) {
+                printf("Detected: 1 Hz (Period: %.2f ms)\n", period_ms);
+            } 
+            else if (period_ms > 150 && period_ms < 350) {
+                printf("Detected: 4 Hz (Period: %.2f ms)\n", period_ms);
+            } 
+            else {
+                printf("Unknown Signal: %.2f Hz\n", frequency);
             }
             ble_notify(notify_buf, strlen(notify_buf));
 
