@@ -654,11 +654,13 @@ static void wait_for_high_task(void *arg)
     while (1) {
         // Wait for rising edge
         if (xQueueReceive(gpio_evt_queue, &evt, portMAX_DELAY)) {
+            /*
             ESP_LOGI(tag,
                 "Event: GPIO %s (%ld) HIGH at %lld us",
                 get_pin_label(evt.pin, label_buf),
                 evt.pin,
                 evt.timestamp_us);
+            */
 
             led_value = 1;
 
@@ -692,13 +694,13 @@ static void wait_for_high_task(void *arg)
             else if (period_ms > 150 && period_ms < 350) {
                 printf("Detected: 4 Hz (Period: %.2f ms)\n", period_ms);
                 strcpy(current_notify_buf, "CLOSIN");
-            } 
+            }
             else {
-                printf("Unknown Signal: %.2f Hz\n", frequency);
-
-                // Do not save UNKNWN state, because the LED terminal on the CP80
+                // Do not save or print unknown state, because the LED terminal on the CP80
                 // gives a very noisy/bouncy/dirty signal instead of a straight horizontal line
+                // which polutes the screen and Bluetooth client
                 //
+                // printf("Unknown Signal: %.2f Hz\n", frequency);
                 // strcpy(current_notify_buf, "UNKNWN");
             }
 
