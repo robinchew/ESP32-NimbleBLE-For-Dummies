@@ -50,6 +50,10 @@ uint16_t max_length = 700; //!! maximum length the client can write to a charact
 
 static QueueHandle_t gpio_evt_queue = NULL;
 static volatile int led_value = 0;
+
+//enum class GateState : uint8_t { OPEN, OPENING, CLOSE, CLOSING, UNKNOWN };
+//static volatile State currentState = GateState::UNKNOWN;
+
 typedef struct {
     uint32_t pin;
     int64_t  timestamp_us;
@@ -634,7 +638,7 @@ static void reset_timer_callback(TimerHandle_t xTimer)
             strcpy(notify_buf, "FCLOSE");
             break;
         default:
-            strcpy(notify_buf, "POPEN");
+            strcpy(notify_buf, "FOPEN");
             break;
     }
     ble_notify(notify_buf, strlen(notify_buf));
@@ -675,20 +679,34 @@ static void wait_for_high_task(void *arg)
             float period_ms = evt.period / 1000.0;
             float frequency = 1000.0 / period_ms;
 
+            char current_notify_buf[7];
+
             // Logic to differentiate 1Hz and 4Hz
             // 1Hz = 1000ms period
             // 4Hz = 250ms period
             // Threshold set at 500ms
             if (period_ms > 700 && period_ms < 1300) {
                 printf("Detected: 1 Hz (Period: %.2f ms)\n", period_ms);
+                strcpy(current_notify_buf, "OPENIN");
             } 
             else if (period_ms > 150 && period_ms < 350) {
                 printf("Detected: 4 Hz (Period: %.2f ms)\n", period_ms);
+                strcpy(current_notify_buf, "CLOSIN");
             } 
             else {
                 printf("Unknown Signal: %.2f Hz\n", frequency);
+
+                // Do not save UNKNWN state, because the LED terminal on the CP80
+                // gives a very noisy/bouncy/dirty signal instead of a straight horizontal line
+                //
+                // strcpy(current_notify_buf, "UNKNWN");
             }
-            ble_notify(notify_buf, strlen(notify_buf));
+
+            if (strcmp(current_notify_buf, notify_buf) != 0) {
+                // Only notify BLE on state change
+                ble_notify(notify_buf, strlen(current_notify_buf));
+                strcpy(notify_buf, current_notify_buf);
+            }
 
             // Restart the 10-second timer
             xTimerStart(reset_timer, 0);
