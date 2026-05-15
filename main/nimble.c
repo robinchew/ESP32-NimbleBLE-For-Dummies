@@ -638,7 +638,7 @@ static void reset_timer_callback(TimerHandle_t xTimer)
             strcpy(notify_buf, "FCLOSE");
             break;
         default:
-            strcpy(notify_buf, "FOPEN");
+            strcpy(notify_buf, "FPOPEN");
             break;
     }
     ble_notify(notify_buf, strlen(notify_buf));
@@ -706,7 +706,7 @@ static void wait_for_high_task(void *arg)
 
             if (strcmp(current_notify_buf, notify_buf) != 0) {
                 // Only notify BLE on state change
-                ble_notify(notify_buf, strlen(current_notify_buf));
+                ble_notify(current_notify_buf, strlen(current_notify_buf));
                 strcpy(notify_buf, current_notify_buf);
             }
 
