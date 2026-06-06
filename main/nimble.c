@@ -635,10 +635,10 @@ static void reset_timer_callback(TimerHandle_t xTimer)
     led_value = gpio_get_level(LED_PIN);
     switch(led_value) {
         case 0:
-            strcpy(notify_buf, "FCLOSE");
+            strcpy(notify_buf, "FCLOSE"); // Full CLOSE
             break;
         default:
-            strcpy(notify_buf, "FPOPEN");
+            strcpy(notify_buf, "FPOPEN"); // Full or Partial OPEN
             break;
     }
     ble_notify(notify_buf, strlen(notify_buf));
