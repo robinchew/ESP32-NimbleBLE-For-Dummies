@@ -681,7 +681,7 @@ static void wait_for_high_task(void *arg)
             float period_ms = evt.period / 1000.0;
             float frequency = 1000.0 / period_ms;
 
-            char current_notify_buf[7];
+            char current_notify_buf[7] = ""; // Initialise to blank string so that variable does not remember previous value
 
             // Logic to differentiate 1Hz and 4Hz
             // 1Hz = 1000ms period
@@ -704,8 +704,8 @@ static void wait_for_high_task(void *arg)
                 // strcpy(current_notify_buf, "UNKNWN");
             }
 
-            if (strcmp(current_notify_buf, notify_buf) != 0) {
-                // Only notify BLE on state change
+            if (strcmp("", current_notify_buf) != 0 && strcmp(current_notify_buf, notify_buf) != 0) { // 0 means identical
+                // Only notify BLE on state change but only if current_notify_buf has actual NON-BLANK string value
                 ble_notify(current_notify_buf, strlen(current_notify_buf));
                 strcpy(notify_buf, current_notify_buf);
             }
