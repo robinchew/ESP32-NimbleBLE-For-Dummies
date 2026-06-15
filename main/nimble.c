@@ -21,7 +21,17 @@
 
 //@______________________Declare some variables____________________________
 esp_err_t ret;
+// static is important for scope, the static globals below will ensure
+// the scope of the variable stays within this file only and can't be
+// accessed by other files
 static const char *tag = "NimBLE_BLE";
+
+// LED timeout needs to be higher than the slowest LED frequency for gate state.
+// eg. Flashes every second means gate is opening
+//     Flashes every 1/4 seconds means gate is closing
+//     So timeout needs to be higher than the slowest frequency which is 1 second
+static const uint16_t LED_TIMEOUT_SECONDS = 2;
+
 static uint8_t own_addr_type;
 uint16_t notification_handle;
 uint16_t conn_handle;
@@ -629,7 +639,7 @@ static void IRAM_ATTR gpio_isr_handler(void *arg)
     xQueueSendFromISR(gpio_evt_queue, &evt, NULL);
 }
 
-// Timer callback: reset led_value after 10 seconds
+// Timer callback: reset led_value after LEDT_TIMEOUT_SECONDS seconds
 static void reset_timer_callback(TimerHandle_t xTimer)
 {
     led_value = gpio_get_level(LED_PIN);
@@ -643,7 +653,7 @@ static void reset_timer_callback(TimerHandle_t xTimer)
     }
     ble_notify(notify_buf, strlen(notify_buf));
 
-    printf("No HIGH event for 10 seconds. led_value reset to %d.\n", led_value);
+    printf("No HIGH event for %d seconds. led_value reset to %d.\n", LED_TIMEOUT_SECONDS, led_value);
 }
 
 static void wait_for_high_task(void *arg)
@@ -729,10 +739,10 @@ void gpio_isr_led_init() {
     };
     gpio_config(&led_input_conf);
 
-    // Create timer (10 seconds)
+    // Create timer
     reset_timer = xTimerCreate(
         "reset_timer",
-        pdMS_TO_TICKS(10000),   // 10 seconds
+        pdMS_TO_TICKS(LED_TIMEOUT_SECONDS * 1000),
         pdFALSE,                // one-shot timer
         NULL,
         reset_timer_callback
@@ -740,12 +750,12 @@ void gpio_isr_led_init() {
 
     // Create task
     xTaskCreate(
-        wait_for_high_task,
-        "wait_for_high_task",
-        2048,
-        NULL,
-        10,
-        NULL
+        wait_for_high_task, // Task function
+        "wait_for_high_task", // Task name
+        2048, // Stack size
+        NULL, // Parameters
+        10, // Priority (high number for high priority)
+        NULL // Task handle
     );
 
     // Install ISR service
